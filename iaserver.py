@@ -1,3 +1,5 @@
+#!/usr/bin/python
+# by nu11secur1ty 2025
 import os
 import json
 import re
