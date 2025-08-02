@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatIA – Python Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <style>
+    /* Chat bubble styling */
+    .chat-bubble {
+      max-width: 90%;
+      padding: 16px 20px;
+      border-radius: 1.5rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 6px;
+    }
+    .user {
+      background-color: white;
+      color: #111827;
+      align-self: flex-end;
+    }
+    .dark .user {
+      background-color: #374151;
+      color: white;
+    }
+    .bot {
+      background-color: #f3f4f6;
+      color: #111827;
+      align-self: flex-start;
+    }
+    .dark .bot {
+      background-color: #1f2937;
+      color: white;
+    }
+    code {
+      background: #1e1e1e;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      font-family: monospace;
+    }
+    pre code {
+      display: block;
+      padding: 1rem;
+      overflow-x: auto;
+    }
+    .timestamp {
+      font-size: 0.7rem;
+      color: #6b7280;
+      margin-top: -4px;
+      margin-bottom: 6px;
+      user-select: none;
+    }
+    .dark .timestamp {
+      color: #9ca3af;
+    }
+
+    /* Sidebar session item and menu */
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+    }
+    .session-item:hover {
+      background-color: #e5e7eb;
+    }
+    .dark .session-item:hover {
+      background-color: #374151;
+    }
+    .session-item.active {
+      background-color: #bfdbfe;
+      font-weight: bold;
+    }
+    .dark .session-item.active {
+      background-color: #2563eb;
+      color: white;
+    }
+    .dots-btn {
+      background: transparent;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0 4px;
+      color: inherit;
+      line-height: 1;
+    }
+    .dots-btn:focus {
+      outline: 2px solid #2563eb;
+      outline-offset: 2px;
+    }
+    .menu {
+      position: absolute;
+      top: 2.2rem;
+      right: 1rem;
+      background-color: white;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+      z-index: 100;
+      width: 140px;
+      display: none;
+      flex-direction: column;
+    }
+    .dark .menu {
+      background-color: #1f2937;
+      border-color: #4b5563;
+      box-shadow: 0 2px 8px rgb(255 255 255 / 0.1);
+    }
+    .menu.show {
+      display: flex;
+    }
+    .menu button {
+      background: transparent;
+      border: none;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      width: 100%;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: inherit;
+      transition: background-color 0.2s;
+    }
+    .menu button:hover,
+    .menu button:focus {
+      background-color: #e5e7eb;
+      outline: none;
+    }
+    .dark .menu button:hover,
+    .dark .menu button:focus {
+      background-color: #374151;
+    }
+    .menu button.delete-btn {
+      color: #dc2626;
+    }
+    .menu button.delete-btn:hover,
+    .menu button.delete-btn:focus {
+      background-color: #fee2e2;
+    }
+    .dark .menu button.delete-btn:hover,
+    .dark .menu button.delete-btn:focus {
+      background-color: #991b1b;
+      color: #fee2e2;
+    }
+
+    /* Typing indicator style */
+    .typing-indicator {
+      max-width: 90%;
+      padding: 16px 20px;
+      border-radius: 1.5rem;
+      color: #6b7280;
+      font-style: italic;
+      align-self: flex-start;
+      margin-bottom: 6px;
+      user-select: none;
+    }
+    .dark .typing-indicator {
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body class="flex min-h-screen font-sans relative">
+
+  <!-- Sidebar -->
+  <nav aria-label="Chat sessions" class="fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col z-50">
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white">💬 Sessions</h2>
+      <button id="add-session-btn" aria-label="Add new session" class="text-blue-600 dark:text-blue-400 hover:underline text-sm">+ New</button>
+    </div>
+    <ul id="session-list" class="flex-1 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700" role="list" tabindex="0" aria-live="polite"></ul>
+
+    <!-- Upload to teach IA -->
+    <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+      <label for="teach-upload" class="w-full flex justify-center items-center px-3 py-2 bg-gray-200 dark:bg-gray-700 text-black dark:text-white rounded-lg cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 text-sm select-none">
+        📤 Teach IA
+      </label>
+      <input type="file" id="teach-upload" accept=".txt,.pdf,.py" class="hidden" aria-label="Upload file to teach IA" />
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <div class="flex flex-col flex-1 ml-64 w-[calc(100%-16rem)]">
+    <header class="w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm p-4 fixed top-0 left-64 right-0 z-40 flex items-center justify-between" role="banner">
+      <h1 class="text-xl font-semibold text-gray-900 dark:text-white">💬 ChatIA</h1>
+      <div class="space-x-2">
+        <button onclick="saveSession()" aria-label="Save current session" class="bg-gray-600 text-white px-3 py-1 rounded-lg text-sm">💾 Save</button>
+        <button onclick="document.getElementById('file-upload').click()" aria-label="Upload file to chat" class="bg-gray-200 dark:bg-gray-700 dark:text-white px-3 py-1 rounded-lg text-sm">📁 Upload</button>
+        <input type="file" id="file-upload" class="hidden" aria-label="Upload file to chat" />
+      </div>
+    </header>
+
+    <main class="flex-1 pt-20 pb-32 px-4 max-w-3xl mx-auto w-full" role="main">
+      <div id="chatbox" class="flex flex-col space-y-1 overflow-y-auto h-[75vh] bg-white dark:bg-gray-800 rounded-xl p-6 shadow-inner scroll-smooth" aria-live="polite" aria-atomic="false"></div>
+    </main>
+
+    <!-- Input -->
+    <div class="fixed bottom-0 left-64 w-[calc(100%-16rem)] flex justify-center px-4 pb-6 z-40 bg-transparent">
+      <form id="chat-form" class="w-full max-w-3xl" role="search" aria-label="Send message form">
+        <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-full flex items-center px-4 py-3 shadow-lg">
+          <input id="message" type="text" placeholder="Type your message..." aria-label="Message input" class="flex-1 bg-transparent focus:outline-none text-black dark:text-white placeholder-gray-400 leading-normal py-1" required autocomplete="off" />
+          <button type="submit" class="ml-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-sm font-medium" aria-label="Send message">
+            Send
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const chatbox = document.getElementById("chatbox");
+    const form = document.getElementById("chat-form");
+    const messageInput = document.getElementById("message");
+    const sessionListEl = document.getElementById("session-list");
+    const teachUpload = document.getElementById("teach-upload");
+
+    let sessions = JSON.parse(localStorage.getItem("chat_sessions")) || [{ id: 1, name: "Session 1", messages: [] }];
+    let activeSessionId = sessions[0]?.id || null;
+
+    function saveToLocal() {
+      localStorage.setItem("chat_sessions", JSON.stringify(sessions));
+    }
+
+    function appendMessage(sender, text, type, timestamp) {
+      const bubble = document.createElement("div");
+      bubble.className = `chat-bubble ${type}`;
+      // Escape HTML entities to prevent XSS
+      const escapeHtml = (str) =>
+        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      bubble.innerHTML = `<strong>${escapeHtml(sender)}:</strong><br>` + hljs.highlightAuto(text).value;
+      chatbox.appendChild(bubble);
+
+      if (timestamp) {
+        const ts = document.createElement("div");
+        ts.className = "timestamp";
+        ts.textContent = new Date(timestamp).toLocaleTimeString();
+        bubble.after(ts);
+      }
+
+      bubble.querySelectorAll('code').forEach(block => hljs.highlightElement(block));
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    function clearChatbox() {
+      chatbox.innerHTML = "";
+    }
+
+    function loadSession(session) {
+      clearChatbox();
+      session.messages.forEach(m => {
+        appendMessage(m.sender, m.text, m.type, m.timestamp);
+      });
+    }
+
+    // Show typing indicator, return the DOM element so it can be removed later
+    function showTypingIndicator() {
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "typing-indicator";
+      typingDiv.textContent = "Please wait for IA to respond to you...";
+      chatbox.appendChild(typingDiv);
+      chatbox.scrollTop = chatbox.scrollHeight;
+      return typingDiv;
+    }
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      const session = sessions.find(s => s.id === activeSessionId);
+      if (!session) return;
+
+      // Add user message
+      const now = new Date().toISOString();
+      session.messages.push({ sender: "You", text, type: "user", timestamp: now });
+      saveToLocal();
+
+      appendMessage("You", text, "user", now);
+      messageInput.value = "";
+      messageInput.disabled = true;
+
+      const typingIndicator = showTypingIndicator();
+
+      try {
+        // Replace this with your chat IA API call
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        });
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+
+        const data = await res.json();
+        typingIndicator.remove();
+
+        const botTime = new Date().toISOString();
+        appendMessage("IA", data.reply || "No response", "bot", botTime);
+
+        session.messages.push({ sender: "IA", text: data.reply || "No response", type: "bot", timestamp: botTime });
+        saveToLocal();
+      } catch (error) {
+        typingIndicator.remove();
+        const errTime = new Date().toISOString();
+        appendMessage("IA", `⚠️ Error: ${error.message}`, "bot", errTime);
+      } finally {
+        messageInput.disabled = false;
+        messageInput.focus();
+      }
+    };
+
+    // Teach IA upload handler: send file to /upload as multipart/form-data
+    teachUpload.onchange = async () => {
+      if (!teachUpload.files.length) return;
+      const file = teachUpload.files[0];
+
+      const now = new Date().toISOString();
+      appendMessage("You (teach IA)", `[Uploading file to server: ${file.name}]`, "user", now);
+
+      const session = sessions.find(s => s.id === activeSessionId);
+      if (!session) return;
+
+      session.messages.push({ sender: "You (teach IA)", text: `[Uploading file to server: ${file.name}]`, type: "user", timestamp: now });
+      saveToLocal();
+
+      const typingIndicator = showTypingIndicator();
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        typingIndicator.remove();
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        const data = await res.json();
+
+        // Example: show success message with file name and maybe learned sentence count
+        const replyText = data.message || `✅ Learned from '${file.name}' successfully!`;
+
+        const replyTime = new Date().toISOString();
+        appendMessage("IA (upload)", replyText, "bot", replyTime);
+
+        session.messages.push({ sender: "IA (upload)", text: replyText, type: "bot", timestamp: replyTime });
+        saveToLocal();
+      } catch (err) {
+        typingIndicator.remove();
+        const errTime = new Date().toISOString();
+        appendMessage("IA", `⚠️ Error uploading file: ${err.message}`, "bot", errTime);
+      }
+
+      teachUpload.value = "";
+    };
+
+    // Session management
+
+    function renderSessions() {
+      sessionListEl.innerHTML = "";
+      sessions.forEach(session => {
+        const li = document.createElement("li");
+        li.className = "session-item" + (session.id === activeSessionId ? " active" : "");
+        li.tabIndex = 0;
+        li.setAttribute("role", "button");
+        li.setAttribute("aria-pressed", session.id === activeSessionId ? "true" : "false");
+        li.textContent = session.name;
+
+        // Dots menu button
+        const dotsBtn = document.createElement("button");
+        dotsBtn.className = "dots-btn";
+        dotsBtn.setAttribute("aria-haspopup", "menu");
+        dotsBtn.setAttribute("aria-expanded", "false");
+        dotsBtn.setAttribute("aria-label", `Session options for ${session.name}`);
+        dotsBtn.textContent = "⋮";
+
+        const menu = document.createElement("div");
+        menu.className = "menu";
+        menu.setAttribute("role", "menu");
+        menu.tabIndex = -1;
+
+        const renameBtn = document.createElement("button");
+        renameBtn.textContent = "Rename";
+        renameBtn.setAttribute("role", "menuitem");
+        renameBtn.onclick = () => {
+          const newName = prompt("Rename session:", session.name);
+          if (newName && newName.trim()) {
+            session.name = newName.trim();
+            saveToLocal();
+            renderSessions();
+            if (session.id === activeSessionId) {
+              document.title = `ChatIA - ${session.name}`;
+            }
+          }
+          menu.classList.remove("show");
+          dotsBtn.setAttribute("aria-expanded", "false");
+        };
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "Delete";
+        deleteBtn.className = "delete-btn";
+        deleteBtn.setAttribute("role", "menuitem");
+        deleteBtn.onclick = () => {
+          if (confirm(`Delete session '${session.name}'? This cannot be undone.`)) {
+            sessions = sessions.filter(s => s.id !== session.id);
+            if (sessions.length === 0) {
+              sessions.push({ id: 1, name: "Session 1", messages: [] });
+            }
+            if (activeSessionId === session.id) {
+              activeSessionId = sessions[0].id;
+              loadSession(sessions[0]);
+            }
+            saveToLocal();
+            renderSessions();
+          }
+          menu.classList.remove("show");
+          dotsBtn.setAttribute("aria-expanded", "false");
+        };
+
+        menu.appendChild(renameBtn);
+        menu.appendChild(deleteBtn);
+
+        dotsBtn.onclick = (e) => {
+          e.stopPropagation();
+          const expanded = dotsBtn.getAttribute("aria-expanded") === "true";
+          document.querySelectorAll(".menu").forEach(m => m.classList.remove("show"));
+          document.querySelectorAll(".dots-btn").forEach(btn => btn.setAttribute("aria-expanded", "false"));
+
+          if (!expanded) {
+            menu.classList.add("show");
+            dotsBtn.setAttribute("aria-expanded", "true");
+            menu.focus();
+          }
+        };
+
+        // Close menu on outside click
+        document.addEventListener("click", () => {
+          menu.classList.remove("show");
+          dotsBtn.setAttribute("aria-expanded", "false");
+        });
+
+        li.appendChild(dotsBtn);
+        li.appendChild(menu);
+
+        li.onclick = () => {
+          if (activeSessionId !== session.id) {
+            activeSessionId = session.id;
+            loadSession(session);
+            renderSessions();
+            document.title = `ChatIA - ${session.name}`;
+          }
+        };
+        li.onkeydown = (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            li.click();
+          }
+        };
+
+        sessionListEl.appendChild(li);
+      });
+    }
+
+    function addSession() {
+      const newId = sessions.length ? Math.max(...sessions.map(s => s.id)) + 1 : 1;
+      const newName = `Session ${newId}`;
+      const newSession = { id: newId, name: newName, messages: [] };
+      sessions.push(newSession);
+      activeSessionId = newId;
+      saveToLocal();
+      renderSessions();
+      loadSession(newSession);
+      document.title = `ChatIA - ${newName}`;
+    }
+
+    document.getElementById("add-session-btn").onclick = addSession;
+
+    function saveSession() {
+      if (!activeSessionId) return;
+      const session = sessions.find(s => s.id === activeSessionId);
+      if (!session) return;
+
+      const blob = new Blob([JSON.stringify(session, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${session.name.replace(/\s+/g, "_").toLowerCase()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Initialize UI
+    renderSessions();
+    if (activeSessionId) {
+      const session = sessions.find(s => s.id === activeSessionId);
+      if (session) loadSession(session);
+      document.title = `ChatIA - ${session.name}`;
+    }
+  </script>
+</body>
+</html>
